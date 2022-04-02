@@ -1,10 +1,198 @@
 package;
+package;
 
+import flixel.FlxSprite;
+import flixel.FlxG;
+import flixel.graphics.frames.FlxAtlasFrames;
+import flixel.math.FlxMath;
+import flixel.util.FlxColor;
+#if polymod
+import polymod.format.ParseRules.TargetSignatureElement;
+#end
+
+using StringTools;
+
+class Note extends FlxSprite
+{
+	public var strumTime:Float = 0;
+
+	public var mustPress:Bool = false;
+	public var noteData:Int = 0;
+	public var canBeHit:Bool = false;
+	public var tooLate:Bool = false;
+	public var wasGoodHit:Bool = false;
+	public var prevNote:Note;
+	public var eyeNote:Bool = false;
+	public var daNotePath:String = 'NOTE_assets';
+
+	public var sustainLength:Float = 0;
+	public var isSustainNote:Bool = false;
+	public var altNote:Bool = false;
+	public var willMiss:Bool = false;
+	public var noteScore:Float = 1;
+
+	public static var swagWidth:Float = 160 * 0.7;
+	public static var PURP_NOTE:Int = 0;
+	public static var GREEN_NOTE:Int = 2;
+	public static var BLUE_NOTE:Int = 1;
+	public static var RED_NOTE:Int = 3;
+
+	public function new(strumTime:Float, noteData:Int, ?prevNote:Note, ?sustainNote:Bool = false, ?noteSkin:String = "", ?eyeNote:Bool = false)
+	{
+		super();
+
+		if (prevNote == null)
+			prevNote = this;
+
+		if(this.eyeNote != eyeNote)
+			this.eyeNote = eyeNote;
+
+		this.prevNote = prevNote;
+		isSustainNote = sustainNote;
+
+		x += 50;
+		// MAKE SURE ITS DEFINITELY OFF SCREEN?
+		y -= 2000;
+		this.strumTime = strumTime;
+
+		this.noteData = noteData;
+
+		var daStage:String = PlayState.curStage;
+
+		if(this.eyeNote)
+		{
+			daNotePath = 'notesEye';
+		}
+		else
+		{
+			daNotePath = 'NOTE_assets';
+		}
+
+		frames = Paths.getSparrowAtlas(daNotePath);
+		animation.addByPrefix('greenScroll', 'green0');
+		animation.addByPrefix('redScroll', 'red0');
+		animation.addByPrefix('blueScroll', 'blue0');
+		animation.addByPrefix('purpleScroll', 'purple0');
+		animation.addByPrefix('purpleholdend', 'pruple end hold');
+		animation.addByPrefix('greenholdend', 'green hold end');
+		animation.addByPrefix('redholdend', 'red hold end');
+		animation.addByPrefix('blueholdend', 'blue hold end');
+		animation.addByPrefix('purplehold', 'purple hold piece');
+		animation.addByPrefix('greenhold', 'green hold piece');
+		animation.addByPrefix('redhold', 'red hold piece');
+		animation.addByPrefix('bluehold', 'blue hold piece');
+		setGraphicSize(Std.int(width * 0.7));
+		updateHitbox();
+		antialiasing = true;
+
+		switch (noteData)
+		{
+			case 0:
+				x += swagWidth * 0;
+				animation.play('purpleScroll');
+			case 1:
+				x += swagWidth * 1;
+				animation.play('blueScroll');
+			case 2:
+				x += swagWidth * 2;
+				animation.play('greenScroll');
+			case 3:
+				x += swagWidth * 3;
+				animation.play('redScroll');
+		}
+
+		
+		if (FlxG.save.data.downscroll && sustainNote) 
+			flipY = true;
+
+		if (isSustainNote && prevNote != null)
+		{
+			noteScore * 0.2;
+			alpha = 0.6;
+
+			x += width / 2;
+
+			switch (noteData)
+			{
+				case 2:
+					animation.play('greenholdend');
+				case 3:
+					animation.play('redholdend');
+				case 1:
+					animation.play('blueholdend');
+				case 0:
+					animation.play('purpleholdend');
+			}
+
+			updateHitbox();
+
+			x -= width / 2;
+
+			if (PlayState.curStage.startsWith('school'))
+				x += 30;
+
+			if (prevNote.isSustainNote)
+			{
+				switch (prevNote.noteData)
+				{
+					case 0:
+						prevNote.animation.play('purplehold');
+					case 1:
+						prevNote.animation.play('bluehold');
+					case 2:
+						prevNote.animation.play('greenhold');
+					case 3:
+						prevNote.animation.play('redhold');
+				}
+
+				prevNote.scale.y *= Conductor.stepCrochet / 100 * 1.5 * PlayState.SONG.speed;
+				prevNote.updateHitbox();
+				
+			}
+		}
+	}
+
+	override function update(elapsed:Float)
+	{
+		super.update(elapsed);
+
+
+
+		if (mustPress)
+		{
+			
+			if (strumTime > Conductor.songPosition - Conductor.safeZoneOffset
+				&& strumTime < Conductor.songPosition + (Conductor.safeZoneOffset * 0.5))
+				canBeHit = true;
+			else
+				canBeHit = false;
+
+			if (strumTime < Conductor.songPosition - Conductor.safeZoneOffset && !wasGoodHit)
+				tooLate = true;
+
+		}
+		else
+		{
+			canBeHit = false;
+
+			if (strumTime <= Conductor.songPosition)
+				wasGoodHit = true;
+		}
+
+		if (tooLate)
+		{
+			if (alpha > 0.3)
+				alpha = 0.3;
+		}
+
+		
+	}
+}
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.graphics.frames.FlxAtlasFrames;
 import flixel.math.FlxMath;
-import flixel.util.FlxColor;
+import flixel.utl.FlxColor;
 import flash.display.BitmapData;
 import editors.ChartingState;
 
@@ -42,7 +230,7 @@ class Note extends FlxSprite
 
 	public var colorSwap:ColorSwap;
 	public var inEditor:Bool = false;
-	public var gfNote:Bool = false;
+	public var gfNote:Bool = false
 	private var earlyHitMult:Float = 0.5;
 
 	public static var swagWidth:Float = 160 * 0.7;
@@ -52,17 +240,16 @@ class Note extends FlxSprite
 	public static var RED_NOTE:Int = 3;
 
 	// Lua shit
-	public var noteSplashDisabled:Bool = false;
+	public var noteSplashDisabled:Bool = false
 	public var noteSplashTexture:String = null;
 	public var noteSplashHue:Float = 0;
-	public var noteSplashSat:Float = 0;
+	public var noteSplashSat:Float = 0
 	public var noteSplashBrt:Float = 0;
 
 	public var offsetX:Float = 0;
 	public var offsetY:Float = 0;
 	public var offsetAngle:Float = 0;
 	public var multAlpha:Float = 1;
-
 	public var copyX:Bool = true;
 	public var copyY:Bool = true;
 	public var copyAngle:Bool = true;
@@ -71,7 +258,7 @@ class Note extends FlxSprite
 	public var hitHealth:Float = 0.023;
 	public var missHealth:Float = 0.0475;
 	public var rating:String = 'unknown';
-	public var ratingMod:Float = 0; //9 = unknown, 0.25 = shit, 0.5 = bad, 0.75 = good, 1 = sick
+	public var ratingMod:Float = 0; //9 = unknown, 0.25 = shit, 0.5 = bad, 0.75 = good, 1 = sic
 	public var ratingDisabled:Bool = false;
 
 	public var texture(default, set):String = null;
@@ -81,7 +268,6 @@ class Note extends FlxSprite
 	public var distance:Float = 2000; //plan on doing scroll directions soon -bb
 
 	public var hitsoundDisabled:Bool = false;
-
 	private function set_texture(value:String):String {
 		if(texture != value) {
 			reloadNote('', value);
@@ -90,7 +276,7 @@ class Note extends FlxSprite
 		return value;
 	}
 
-	private function set_noteType(value:String):String {
+	private function set_noteType(value:String):String 
 		noteSplashTexture = PlayState.SONG.splashSkin;
 		colorSwap.hue = ClientPrefs.arrowHSV[noteData % 4][0] / 360;
 		colorSwap.saturation = ClientPrefs.arrowHSV[noteData % 4][1] / 100;
@@ -100,7 +286,7 @@ class Note extends FlxSprite
 			switch(value) {
 				case 'Hurt Note':
 					ignoreNote = mustPress;
-					reloadNote('HURT');
+					reloadNote('HURT')
 					noteSplashTexture = 'HURTnoteSplashes';
 					colorSwap.hue = 0;
 					colorSwap.saturation = 0;
@@ -374,14 +560,4 @@ class Note extends FlxSprite
 			if (strumTime < Conductor.songPosition + (Conductor.safeZoneOffset * earlyHitMult))
 			{
 				if((isSustainNote && prevNote.wasGoodHit) || strumTime <= Conductor.songPosition)
-					wasGoodHit = true;
-			}
-		}
-
-		if (tooLate && !inEditor)
-		{
-			if (alpha > 0.3)
-				alpha = 0.3;
-		}
-	}
-}
+					wasGoodHiwasGoowasGoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoosGoodHiwasGoowasGoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwaasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswdoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGooodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoosGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwassGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGdHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGdHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswdoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodooowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowaHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswdoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodooowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowasGoodoodHiwaswasGoodHiwasGoowdHiwasGoowasGoodoodHiwaswasGoo
