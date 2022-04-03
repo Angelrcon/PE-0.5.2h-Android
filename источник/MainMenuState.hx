@@ -85,7 +85,7 @@ class MainMenuState extends MusicBeatState
 		bg.setGraphicSize(Std.int(bg.width * .5));
 		bg.updateHitbox();
 		bg.screenCenter();
-		bg.antialiasing = true;
+		bg.antialiasing = off;
 		add(bg);
 
 		bgdesat = new FlxSprite(-80).loadGraphic(Paths.image('backgroundlool2'));
